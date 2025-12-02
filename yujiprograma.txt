@@ -1,0 +1,5 @@
+inteiro a(vazio) {
+	inteiro x;
+	x = 1;
+	retorna x;
+}
