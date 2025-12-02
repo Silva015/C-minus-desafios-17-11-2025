@@ -48,6 +48,16 @@ void context_check(char *sym_name) {
         printf("   [TABELA] -> Uso de '%s' verificado (OK).\n", sym_name);
 }
 
+void print_sym_table() {
+    printf("\n===== TABELA DE SIMBOLOS FINAL =====\n");
+    symrec *ptr = sym_table;
+    while (ptr != NULL) {
+        printf(" - %s\n", ptr->name);
+        ptr = ptr->next;
+    }
+    printf("====================================\n");
+}
+
 extern int yylex();
 extern char* yytext;
 void yyerror(char *s);
@@ -195,6 +205,7 @@ int main(int argc, char **argv) {
     yyparse();
 
     if(yyin != stdin) fclose(yyin);
+    print_sym_table();
     return 0;
 }
 

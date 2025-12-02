@@ -36,7 +36,7 @@ retorna     {return RETORNA;}
             }
 
 [0-9]+      {return NUM;}
-[ \t\n\r]+  {;}
+[ \t\n\r]+  {;} // funciona no MAC
 .           {return yytext[0];}
 
 %%
