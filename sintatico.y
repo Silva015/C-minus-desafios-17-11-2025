@@ -1,4 +1,3 @@
-/* Verificando a sintaxe de programas segundo GLC-C-minus */
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,33 +5,51 @@
 
 /* --- TABELA DE SIMBOLOS --- */
 
+// Nó da tabela de símbolos
 struct symrec {
     char *name;
     struct symrec *next;
-};
+}; 
+
 typedef struct symrec symrec;
 
+// Ponteiro global para o início da tabela de símbolos
 symrec *sym_table = (symrec *)0;
 
+// Responsável por alocar memória e inserir um novo símbolo na tabela
 symrec *putsym(char *sym_name) {
+    // Aloca memória para o nó symrec.
     symrec *ptr = (symrec *) malloc(sizeof(symrec));
+
+    // Aloca memória para a string do nome do símbolo e copia o nome.
     ptr->name = (char *) malloc(strlen(sym_name) + 1);
     strcpy(ptr->name, sym_name);
+
+    // Faz o novo nó apontar para o atual início da lista
     ptr->next = (struct symrec *)sym_table;
+
+    // Atualiza a cabeça da lista para ser o novo nó
     sym_table = ptr;
     return ptr;
 }
 
+// Responsável por procurar um símbolo existente pelo nome
 symrec *getsym(char *sym_name) {
     symrec *ptr;
+
+    // Percorre a lista encadeada nó por nó
     for (ptr = sym_table; ptr != (symrec *)0; ptr = (symrec *)ptr->next)
+        
+        // Compara o nome buscado com o nome do nó atual
         if (strcmp(ptr->name, sym_name) == 0)
             return ptr;
     return 0;
 }
 
+// Responsável por garantir que um símbolo seja declarado apenas uma vez e registrá-lo
 void install(char *sym_name) {
     symrec *s = getsym(sym_name);
+
     if (s == 0) {
         s = putsym(sym_name);
         printf("   [TABELA] -> Declaração de '%s' registrada.\n", sym_name);
@@ -41,6 +58,7 @@ void install(char *sym_name) {
     }
 }
 
+// Responsável por verificar se um símbolo foi declarado antes de ser usado
 void context_check(char *sym_name) {
     if (getsym(sym_name) == 0)
         printf("   [ERRO SEMANTICO] -> Variavel '%s' usada mas NAO declarada.\n", sym_name);
@@ -100,7 +118,7 @@ declaracao: declaracao_de_var
 
 declaracao_de_var: especificador_de_tipo ID ';' { 
     printf("[SINTATICO] Encontrei declaracao de variavel: %s\n", $2);
-    install($2); 
+    install($2); // $2 contém o nome vindo do léxico
 }
 ;
 
@@ -117,7 +135,6 @@ declaracao_de_funcao: especificador_de_tipo ID '(' params ')' comando_composto {
 params: VAZIO
 ;
 
-/* TRUQUE PARA CORRIGIR O ERRO: Regra separada para o abre chaves */
 l_brace: '{' { printf("[SINTATICO] -- Entrando no bloco '{' --\n"); }
 ;
 
@@ -163,7 +180,9 @@ expressao: var '=' expressao {
 var: ID { 
     /* Aqui verificamos se a variavel existe antes de usar */
     context_check($1);
-    $$ = $1; 
+    
+    // Pegue o texto que está no token ID ('x') e passe-o para cima, para que a regra var também valha 'x'
+    $$ = $1;
 }
 ;
 
