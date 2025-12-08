@@ -5,73 +5,73 @@
 
 /* --- TABELA DE SIMBOLOS --- */
 
-// Nó da tabela de símbolos
-struct symrec {
-    char *name;
-    struct symrec *next;
+// Nó da tabela de símbolos (antigo symrec)
+struct registro_simbolo {
+    char *nome;
+    struct registro_simbolo *prox;
 }; 
 
-typedef struct symrec symrec;
+typedef struct registro_simbolo registro_simbolo;
 
 // Ponteiro global para o início da tabela de símbolos
-symrec *sym_table = (symrec *)0;
+registro_simbolo *tabela_simbolos = (registro_simbolo *)0;
 
 // Responsável por alocar memória e inserir um novo símbolo na tabela
-symrec *putsym(char *sym_name) {
-    // Aloca memória para o nó symrec.
-    symrec *ptr = (symrec *) malloc(sizeof(symrec));
+registro_simbolo *inserir_simbolo(char *nome_simbolo) {
+    // Aloca memória para o nó.
+    registro_simbolo *ptr = (registro_simbolo *) malloc(sizeof(registro_simbolo));
 
     // Aloca memória para a string do nome do símbolo e copia o nome.
-    ptr->name = (char *) malloc(strlen(sym_name) + 1);
-    strcpy(ptr->name, sym_name);
+    ptr->nome = (char *) malloc(strlen(nome_simbolo) + 1);
+    strcpy(ptr->nome, nome_simbolo);
 
     // Faz o novo nó apontar para o atual início da lista
-    ptr->next = (struct symrec *)sym_table;
+    ptr->prox = (struct registro_simbolo *)tabela_simbolos;
 
     // Atualiza a cabeça da lista para ser o novo nó
-    sym_table = ptr;
+    tabela_simbolos = ptr;
     return ptr;
 }
 
 // Responsável por procurar um símbolo existente pelo nome
-symrec *getsym(char *sym_name) {
-    symrec *ptr;
+registro_simbolo *buscar_simbolo(char *nome_simbolo) {
+    registro_simbolo *ptr;
 
     // Percorre a lista encadeada nó por nó
-    for (ptr = sym_table; ptr != (symrec *)0; ptr = (symrec *)ptr->next)
+    for (ptr = tabela_simbolos; ptr != (registro_simbolo *)0; ptr = (registro_simbolo *)ptr->prox)
         
         // Compara o nome buscado com o nome do nó atual
-        if (strcmp(ptr->name, sym_name) == 0)
+        if (strcmp(ptr->nome, nome_simbolo) == 0)
             return ptr;
     return 0;
 }
 
 // Responsável por garantir que um símbolo seja declarado apenas uma vez e registrá-lo
-void install(char *sym_name) {
-    symrec *s = getsym(sym_name);
+void registrar(char *nome_simbolo) {
+    registro_simbolo *s = buscar_simbolo(nome_simbolo);
 
     if (s == 0) {
-        s = putsym(sym_name);
-        printf("   [TABELA] -> Declaração de '%s' registrada.\n", sym_name);
+        s = inserir_simbolo(nome_simbolo);
+        printf("   [TABELA] -> Declaração de '%s' registrada.\n", nome_simbolo);
     } else {
-        printf("   [ERRO SEMANTICO] -> Variavel '%s' ja foi declarada antes!\n", sym_name);
+        printf("   [ERRO SEMANTICO] -> Variavel '%s' ja foi declarada antes!\n", nome_simbolo);
     }
 }
 
 // Responsável por verificar se um símbolo foi declarado antes de ser usado
-void context_check(char *sym_name) {
-    if (getsym(sym_name) == 0)
-        printf("   [ERRO SEMANTICO] -> Variavel '%s' usada mas NAO declarada.\n", sym_name);
+void verificar_contexto(char *nome_simbolo) {
+    if (buscar_simbolo(nome_simbolo) == 0)
+        printf("   [ERRO SEMANTICO] -> Variavel '%s' usada mas NAO declarada.\n", nome_simbolo);
     else
-        printf("   [TABELA] -> Uso de '%s' verificado (OK).\n", sym_name);
+        printf("   [TABELA] -> Uso de '%s' verificado (OK).\n", nome_simbolo);
 }
 
-void print_sym_table() {
+void imprimir_tabela() {
     printf("\n===== TABELA DE SIMBOLOS FINAL =====\n");
-    symrec *ptr = sym_table;
+    registro_simbolo *ptr = tabela_simbolos;
     while (ptr != NULL) {
-        printf(" - %s\n", ptr->name);
-        ptr = ptr->next;
+        printf(" - %s\n", ptr->nome);
+        ptr = ptr->prox;
     }
     printf("====================================\n");
 }
@@ -118,7 +118,7 @@ declaracao: declaracao_de_var
 
 declaracao_de_var: especificador_de_tipo ID ';' { 
     printf("[SINTATICO] Encontrei declaracao de variavel: %s\n", $2);
-    install($2); // $2 contém o nome vindo do léxico
+    registrar($2); 
 }
 ;
 
@@ -128,7 +128,7 @@ especificador_de_tipo: INTEIRO
 
 declaracao_de_funcao: especificador_de_tipo ID '(' params ')' comando_composto { 
     printf("[SINTATICO] Encontrei funcao: %s\n", $2);
-    install($2); 
+    registrar($2); 
 }
 ;
 
@@ -178,10 +178,9 @@ expressao: var '=' expressao {
 ;
 
 var: ID { 
-    /* Aqui verificamos se a variavel existe antes de usar */
-    context_check($1);
+    /* Verifica se a variavel existe antes de usar */
+    verificar_contexto($1); 
     
-    // Pegue o texto que está no token ID ('x') e passe-o para cima, para que a regra var também valha 'x'
     $$ = $1;
 }
 ;
@@ -224,7 +223,7 @@ int main(int argc, char **argv) {
     yyparse();
 
     if(yyin != stdin) fclose(yyin);
-    print_sym_table();
+    imprimir_tabela();
     return 0;
 }
 
