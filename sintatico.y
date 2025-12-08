@@ -3,84 +3,76 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern int yylineno; /* Variavel que o Flex mantem */
+extern int yylex();
+extern char* yytext;
+void yyerror(char *s);
+
 /* --- TABELA DE SIMBOLOS --- */
 
-// Nó da tabela de símbolos (antigo symrec)
 struct registro_simbolo {
     char *nome;
+    char *tipo;
+    int linha;
     struct registro_simbolo *prox;
 }; 
 
 typedef struct registro_simbolo registro_simbolo;
 
-// Ponteiro global para o início da tabela de símbolos
 registro_simbolo *tabela_simbolos = (registro_simbolo *)0;
 
-// Responsável por alocar memória e inserir um novo símbolo na tabela
-registro_simbolo *inserir_simbolo(char *nome_simbolo) {
-    // Aloca memória para o nó.
+registro_simbolo *inserir_simbolo(char *nome_simbolo, char *tipo_simbolo, int linha_declaracao) {
     registro_simbolo *ptr = (registro_simbolo *) malloc(sizeof(registro_simbolo));
-
-    // Aloca memória para a string do nome do símbolo e copia o nome.
     ptr->nome = (char *) malloc(strlen(nome_simbolo) + 1);
     strcpy(ptr->nome, nome_simbolo);
-
-    // Faz o novo nó apontar para o atual início da lista
+    ptr->tipo = (char *) malloc(strlen(tipo_simbolo) + 1);
+    strcpy(ptr->tipo, tipo_simbolo);
+    ptr->linha = linha_declaracao;
     ptr->prox = (struct registro_simbolo *)tabela_simbolos;
-
-    // Atualiza a cabeça da lista para ser o novo nó
     tabela_simbolos = ptr;
     return ptr;
 }
 
-// Responsável por procurar um símbolo existente pelo nome
 registro_simbolo *buscar_simbolo(char *nome_simbolo) {
     registro_simbolo *ptr;
-
-    // Percorre a lista encadeada nó por nó
     for (ptr = tabela_simbolos; ptr != (registro_simbolo *)0; ptr = (registro_simbolo *)ptr->prox)
-        
-        // Compara o nome buscado com o nome do nó atual
-        if (strcmp(ptr->nome, nome_simbolo) == 0)
-            return ptr;
+        if (strcmp(ptr->nome, nome_simbolo) == 0) return ptr;
     return 0;
 }
 
-// Responsável por garantir que um símbolo seja declarado apenas uma vez e registrá-lo
-void registrar(char *nome_simbolo) {
+void registrar(char *nome_simbolo, char *tipo_simbolo, int linha_atual) {
     registro_simbolo *s = buscar_simbolo(nome_simbolo);
-
     if (s == 0) {
-        s = inserir_simbolo(nome_simbolo);
-        printf("   [TABELA] -> Declaração de '%s' registrada.\n", nome_simbolo);
+        s = inserir_simbolo(nome_simbolo, tipo_simbolo, linha_atual);
+        printf("   [TABELA] -> Declaracao de '%s' (Tipo: %s, Linha: %d) registrada.\n", nome_simbolo, tipo_simbolo, linha_atual);
     } else {
-        printf("   [ERRO SEMANTICO] -> Variavel '%s' ja foi declarada antes!\n", nome_simbolo);
+        printf("   [ERRO SEMANTICO] Linha %d -> Variavel '%s' ja declarada na linha %d!\n", linha_atual, nome_simbolo, s->linha);
     }
 }
 
-// Responsável por verificar se um símbolo foi declarado antes de ser usado
-void verificar_contexto(char *nome_simbolo) {
-    if (buscar_simbolo(nome_simbolo) == 0)
-        printf("   [ERRO SEMANTICO] -> Variavel '%s' usada mas NAO declarada.\n", nome_simbolo);
+void verificar_contexto(char *nome_simbolo, int linha_uso) {
+    registro_simbolo *s = buscar_simbolo(nome_simbolo);
+    if (s == 0)
+        printf("   [ERRO SEMANTICO] Linha %d -> Variavel '%s' usada mas NAO declarada.\n", linha_uso, nome_simbolo);
     else
-        printf("   [TABELA] -> Uso de '%s' verificado (OK).\n", nome_simbolo);
+        printf("   [TABELA] -> Uso de '%s' verificado na linha %d. (Declarada na linha %d)\n", nome_simbolo, linha_uso, s->linha);
 }
 
 void imprimir_tabela() {
     printf("\n===== TABELA DE SIMBOLOS FINAL =====\n");
+    printf("%-20s | %-10s | %-5s\n", "NOME", "TIPO", "LINHA");
+    printf("---------------------------------------------\n");
     registro_simbolo *ptr = tabela_simbolos;
     while (ptr != NULL) {
-        printf(" - %s\n", ptr->nome);
+        printf("%-20s | %-10s | %-5d\n", ptr->nome, ptr->tipo, ptr->linha);
         ptr = ptr->prox;
     }
     printf("====================================\n");
 }
-
-extern int yylex();
-extern char* yytext;
-void yyerror(char *s);
-
 %}
+
+/* Habilita o recurso de localizacao do Bison */
+%locations
 
 %union {
     char *cadeia;
@@ -89,9 +81,8 @@ void yyerror(char *s);
 %token INTEIRO VAZIO SE SENAO ENQUANTO RETORNA
 %token LE GE EQ NE LT GT SOMA SUB MUL DIV
 %token NUM
-
-/* Token ID carrega o nome */
 %token <cadeia> ID 
+%type <cadeia> especificador_de_tipo
 %type <cadeia> var
 
 %left '='
@@ -101,7 +92,6 @@ void yyerror(char *s);
 %left MUL DIV
 
 %%
-/* Regras Gramaticais */
 
 programa: lista_de_declaracoes { 
     printf("\n[SINTATICO] === FIM: Programa analisado com sucesso ===\n"); 
@@ -118,17 +108,19 @@ declaracao: declaracao_de_var
 
 declaracao_de_var: especificador_de_tipo ID ';' { 
     printf("[SINTATICO] Encontrei declaracao de variavel: %s\n", $2);
-    registrar($2); 
+    /* @2.first_line pega a linha do ID ($2), nao a linha atual */
+    registrar($2, $1, @2.first_line); 
 }
 ;
 
-especificador_de_tipo: INTEIRO 
-    | VAZIO
+especificador_de_tipo: INTEIRO { $$ = "inteiro"; }
+    | VAZIO   { $$ = "vazio"; }
 ;
 
 declaracao_de_funcao: especificador_de_tipo ID '(' params ')' comando_composto { 
     printf("[SINTATICO] Encontrei funcao: %s\n", $2);
-    registrar($2); 
+    /* AQUI ESTA A CORRECAO: @2 pega a linha do ID da funcao */
+    registrar($2, $1, @2.first_line); 
 }
 ;
 
@@ -178,9 +170,8 @@ expressao: var '=' expressao {
 ;
 
 var: ID { 
-    /* Verifica se a variavel existe antes de usar */
-    verificar_contexto($1); 
-    
+    /* Aqui usamos @1.first_line porque ID e o primeiro elemento da regra */
+    verificar_contexto($1, @1.first_line); 
     $$ = $1;
 }
 ;
@@ -228,5 +219,6 @@ int main(int argc, char **argv) {
 }
 
 void yyerror (char *s) {
-    printf ("\n[ERRO FATAL] %s\n", s);
+    /* Agora usamos yylineno na mensagem de erro */
+    printf ("\n[ERRO FATAL] Linha %d: %s\n", yylineno, s);
 }
