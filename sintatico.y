@@ -14,12 +14,15 @@ struct registro_simbolo {
     char *nome;
     char *tipo;
     int linha;
+    int endereco;
     struct registro_simbolo *prox;
 }; 
 
 typedef struct registro_simbolo registro_simbolo;
 
 registro_simbolo *tabela_simbolos = (registro_simbolo *)0;
+
+int contador_endereco = 0;
 
 registro_simbolo *inserir_simbolo(char *nome_simbolo, char *tipo_simbolo, int linha_declaracao) {
     registro_simbolo *ptr = (registro_simbolo *) malloc(sizeof(registro_simbolo));
@@ -28,6 +31,10 @@ registro_simbolo *inserir_simbolo(char *nome_simbolo, char *tipo_simbolo, int li
     ptr->tipo = (char *) malloc(strlen(tipo_simbolo) + 1);
     strcpy(ptr->tipo, tipo_simbolo);
     ptr->linha = linha_declaracao;
+
+    ptr->endereco = contador_endereco;
+    contador_endereco++; 
+
     ptr->prox = (struct registro_simbolo *)tabela_simbolos;
     tabela_simbolos = ptr;
     return ptr;
@@ -60,11 +67,11 @@ void verificar_contexto(char *nome_simbolo, int linha_uso) {
 
 void imprimir_tabela() {
     printf("\n===== TABELA DE SIMBOLOS FINAL =====\n");
-    printf("%-20s | %-10s | %-5s\n", "NOME", "TIPO", "LINHA");
-    printf("---------------------------------------------\n");
+    printf("%-20s | %-10s | %-5s | %-8s\n", "NOME", "TIPO", "LINHA", "ENDERECO");
+    printf("----------------------------------------------------------\n");
     registro_simbolo *ptr = tabela_simbolos;
     while (ptr != NULL) {
-        printf("%-20s | %-10s | %-5d\n", ptr->nome, ptr->tipo, ptr->linha);
+        printf("%-20s | %-10s | %-5d | %-8d\n", ptr->nome, ptr->tipo, ptr->linha, ptr->endereco);
         ptr = ptr->prox;
     }
     printf("====================================\n");
