@@ -3,7 +3,13 @@
 #include "sintatico.tab.h" 
 
 extern char *strdup(const char *s);
+
+/* Sincroniza o numero da linha do Flex com a struct de localizacao do Bison */
+#define YY_USER_ACTION yylloc.first_line = yylineno; 
 %}
+
+/* A opçao yylineno diz para o flex criar uma variavel int yylineno e manter atualizada */
+%option yylineno
 
 %%
 inteiro     {return INTEIRO;}
@@ -30,13 +36,16 @@ retorna     {return RETORNA;}
 "}"         {return yytext[0];}
 "="         {return yytext[0];}
 
-[a-z]+      {
+[a-zA-Z_][a-zA-Z0-9_]*      {
               yylval.cadeia = strdup(yytext);
               return ID;
             }
 
 [0-9]+      {return NUM;}
-[ \t\n\r]+  {;} // funciona no MAC
+
+[ \t\r]+    {;} 
+\n          {;} 
+
 .           {return yytext[0];}
 
 %%
