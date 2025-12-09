@@ -36,7 +36,7 @@ retorna     {return RETORNA;}
 "}"         {return yytext[0];}
 "="         {return yytext[0];}
 
-[a-z]+      {
+[a-zA-Z_][a-zA-Z0-9_]*      {
               yylval.cadeia = strdup(yytext);
               return ID;
             }
